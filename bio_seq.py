@@ -1,4 +1,4 @@
-from bio_structs import *
+from bio_structs import NUCLEO_BASES, DNA_CODON
 from collections import Counter
 from random import choice
 from itertools import chain
@@ -27,3 +27,83 @@ class bio_seq:
   def gen_random_sequence(self, length=50, seq_type="DNA"):
     seq = ''.join(choice(NUCLEO_BASES) for _ in range(length))
     self.__init__(seq, seq_type, "Randomly generated sequence")
+
+  def base_frequency_count(self):
+    """Sequence -> Dict with counter for each base """
+    return dict(Counter(self.seq))
+  
+  def transcription(self):
+    """DNA -> RNA, replaces Thymine with Uracil"""
+    return self.seq.replace("T", "U")
+  
+  def reverse_complement(self):
+    """
+    Swaps adenine with thymine and guanine with cytosine\n
+    Reverses the final string
+    """
+    mapping = str.maketrans("ACTG", "TGAC")
+    return self.seq.translate(mapping)[::-1]
+  
+  def gc_content(self, n=6):
+    """
+    GC Content in DNA\RNA sequence \n
+    n will specify decimal precision
+    """
+    return round((self.seq.count('C') + self.seq.count('G')) / len(self.seq) * 100, n)
+  
+  def gc_content_subseq(self, k=20):
+    """
+    GC Content in a DNA/RNA sub sequence of k length. k defaults at 20
+    """
+    return [round((self.seq[i:i + k].count('C') + self.seq[i:i + k].count('G')) / k * 100, 6) for i in range(0, len(self.seq) - k + 1, k)]
+  
+  def translate_seq(self, init_pos=0):
+    """Translates DNA to Amino Acid Sequence"""
+    return ''.join([DNA_CODON[self.seq[pos: pos+3]] for pos in range(init_pos, len(self.seq) - 2, 3)])
+
+  def codon_freq(self, aa):
+    """
+    Check for a special Amino Acid(AA) and return freq for each codon encoding for that specific AA
+    """
+    tmpList = [self.seq[i:i + 3] for i in range(0, len(self.seq) - 2, 3) if DNA_CODON[self.seq[i:i + 3]] == aa]
+    return { k: f'{(v / len(tmpList)) * 100}%' for k,v in Counter(tmpList).most_common() }
+  
+  def gen_reading_frames(self):
+    """Generate six reading frames of a DNA sequence, including reverse complement"""
+    frames = [self.translate_seq(x) for x in range(0, 3)]
+    tmp_seq = bio_seq(self.reverse_complement(), self.seq_type)
+    for x in range(0, 3):
+      frames.append(tmp_seq.translate_seq(x))
+    del tmp_seq
+    return frames
+  
+  def proteins_from_rf(self, aa_seq):
+    current_prot = []
+    proteins = []
+    for aa in aa_seq:
+      if aa == "*":
+        if current_prot:
+          for p in current_prot:
+            proteins.append(p)
+          current_prot = []
+      else:
+        if aa == "M":
+          current_prot.append("")
+        for i in range(len(current_prot)):
+          current_prot[i] += aa
+    return proteins
+  
+  def proteins_from_orfs(self, start=0, end=0, ordered=False):
+    """
+    Returns a list of proteins based on reading frames created from the supplied sequence
+    """
+    if end > start:
+      tmpSeq = bio_seq(self.seq[start:end], self.seq_type)
+      rfs = tmpSeq.gen_reading_frames()
+    else:
+      rfs = self.gen_reading_frames()
+    
+    res = list(chain.from_iterable([self.proteins_from_rf(rfs[i]) for i in range(len(rfs))]))
+    if ordered:
+      return sorted(res, key=len, reverse=True)
+    return res

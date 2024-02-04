@@ -1,0 +1,1 @@
+NUCLEO_BASES = ["A", "C", "G", "T"]

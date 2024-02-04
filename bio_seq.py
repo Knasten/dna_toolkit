@@ -1,4 +1,4 @@
-from bio_structs import NUCLEO_BASES, DNA_CODON
+from bio_structs import NUCLEO_BASES, DNA_CODONS, RNA_CODONS
 from collections import Counter
 from random import choice
 from itertools import chain
@@ -16,7 +16,7 @@ class bio_seq:
 
   def __validate(self):
     """Makes sure the string is a valid DNA string"""
-    return set(NUCLEO_BASES).issuperset(self.seq)
+    return set(NUCLEO_BASES[self.seq_type]).issuperset(self.seq)
   
   def get_info(self):
     return f"[Sequence]: {self.seq}\n[Biotype]: {self.seq_type}\n[Label]: {self.label}\n[Length]: {len(self.seq)}"
@@ -25,7 +25,7 @@ class bio_seq:
     return self.seq_type
   
   def gen_random_sequence(self, length=50, seq_type="DNA"):
-    seq = ''.join(choice(NUCLEO_BASES) for _ in range(length))
+    seq = ''.join(choice(NUCLEO_BASES[seq_type]) for _ in range(length))
     self.__init__(seq, seq_type, "Randomly generated sequence")
 
   def base_frequency_count(self):
@@ -34,6 +34,8 @@ class bio_seq:
   
   def transcription(self):
     """DNA -> RNA, replaces Thymine with Uracil"""
+    if self.seq_type != 'DNA':
+      return 'Invalid sequence not DNA'
     return self.seq.replace("T", "U")
   
   def reverse_complement(self):
@@ -41,7 +43,7 @@ class bio_seq:
     Swaps adenine with thymine and guanine with cytosine\n
     Reverses the final string
     """
-    mapping = str.maketrans("ACTG", "TGAC")
+    mapping = str.maketrans("ACTG", "TGAC") if self.seq_type == "DNA" else str.maketrans("ACUG", "UGAC")
     return self.seq.translate(mapping)[::-1]
   
   def gc_content(self, n=6):
@@ -59,13 +61,20 @@ class bio_seq:
   
   def translate_seq(self, init_pos=0):
     """Translates DNA to Amino Acid Sequence"""
-    return ''.join([DNA_CODON[self.seq[pos: pos+3]] for pos in range(init_pos, len(self.seq) - 2, 3)])
-
+    if self.seq_type == 'DNA':
+      return ''.join([DNA_CODONS[self.seq[pos: pos+3]] for pos in range(init_pos, len(self.seq) - 2, 3)])
+    elif self.seq_type == 'RNA':
+      return ''.join([RNA_CODONS[self.seq[pos: pos+3]] for pos in range(init_pos, len(self.seq) - 2, 3)])
+    
   def codon_freq(self, aa):
     """
     Check for a special Amino Acid(AA) and return freq for each codon encoding for that specific AA
     """
-    tmpList = [self.seq[i:i + 3] for i in range(0, len(self.seq) - 2, 3) if DNA_CODON[self.seq[i:i + 3]] == aa]
+    if self.seq_type == 'DNA':
+      tmpList = [self.seq[i:i + 3] for i in range(0, len(self.seq) - 2, 3) if DNA_CODONS[self.seq[i:i + 3]] == aa]
+    elif self.seq_type == 'RNA':
+      tmpList = [self.seq[i:i + 3] for i in range(0, len(self.seq) - 2, 3) if RNA_CODONS[self.seq[i:i + 3]] == aa]
+      
     return { k: f'{(v / len(tmpList)) * 100}%' for k,v in Counter(tmpList).most_common() }
   
   def gen_reading_frames(self):
